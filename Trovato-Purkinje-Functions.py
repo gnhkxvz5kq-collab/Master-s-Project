@@ -3,6 +3,24 @@ import numpy as np
 
 #will set up initialisation values later - need to make a list of those that need initialising
 #currently all initial values are established within each function component but will change this later
+def extracellular():
+
+    nao = 140.0
+    cao = 1.8
+    ko = 5.4
+
+    return nao, cao, ko
+
+def physical_constants():
+    R = 8314.0
+    T = 310.0
+    F = 96485.0
+
+    zna = 1.0
+    zca = 2.0
+    zk = 1.0
+
+    return R, T, F, zna, zca, zk
 
 def Cell_Geometry(L = 0.0164, rad=0.00175):
     #returns 9 values 
@@ -973,4 +991,576 @@ def IpCa_current(casl):
     IpCa = GpCa * casl / (KmCap + casl)
 
     return IpCa
+
+def intracellular_ion_derivatives(
+    X,
+    currents,
+    fluxes,
+    volumes,
+    Acap,
+    F,
+    cm=1.0
+):
+    """
+    Calculate derivatives of intracellular ion concentrations.
+
+    State order in X:
+        nai, nasl, nass, ki, ksl, kss,
+        cai, cass, casl, cansr, cajsr, cacsr
+
+    currents: dictionary containing the currents used below.
+    fluxes:   dictionary containing the ion and calcium fluxes.
+    volumes:  dictionary containing compartment volumes.
+
+    Returns
+    -------
+    dXdt : numpy array
+        Derivatives in the same order as X, in mM/ms.
+    """
+
+    # Unpack state variables
+    (
+        nai, nasl, nass,
+        ki, ksl, kss,
+        cai, cass, casl,
+        cansr, cajsr, cacsr
+    ) = X
+
+    # Fixed calcium-buffer parameters
+    BSRmax = 0.019975
+    KmBSR = 0.00087
+
+    BSLmax = 0.4777
+    KmBSL = 0.0087
+
+    csqnmax = 2.88
+    kmcsqn = 0.8
+    csqnmaxsl = 1.2
+
+    cmdnmax = 0.1125
+    kmcmdn = 0.00238
+    cmdnmaxsl = 0.0125
+
+    trpnmax = 0.0315
+    kmtrpn = 0.0005
+    trpnmaxsl = 0.0035
+
+    # Compartment volumes
+    vmyo = volumes["vmyo"]
+    vsl = volumes["vsl"]
+    vss = volumes["vss"]
+    vnsr = volumes["vnsr"]
+    vjsr = volumes["vjsr"]
+    vcsr = volumes["vcsr"]
+
+    # Ionic currents
+    INa = currents["INa"]
+    INaL = currents["INaL"]
+    INaCa_i = currents["INaCa_i"]
+    INaCa_ss = currents["INaCa_ss"]
+    INaK = currents["INaK"]
+    INab = currents["INab"]
+    IfNa = currents["IfNa"]
+    IfK = currents["IfK"]
+    IK1 = currents["IK1"]
+    IKr = currents["IKr"]
+    IKs = currents["IKs"]
+    Istim = currents["Istim"]
+    Ito = currents["Ito"]
+    Isus = currents["Isus"]
+    ICab = currents["ICab"]
+    IpCa = currents["IpCa"]
+    ICaL = currents["ICaL"]
+    ICaT = currents["ICaT"]
+    ICaNa = currents["ICaNa"]
+    ICaK = currents["ICaK"]
+
+    # Ionic and calcium fluxes
+    JdiffNa = fluxes["JdiffNa"]
+    JgapNa = fluxes["JgapNa"]
+
+    JdiffK = fluxes["JdiffK"]
+    JgapK = fluxes["JgapK"]
+
+    Jdiff = fluxes["Jdiff"]
+    Jgap = fluxes["Jgap"]
+
+    Jup1 = fluxes["Jup1"]
+    Jup2 = fluxes["Jup2"]
+
+    Jrel1 = fluxes["Jrel1"]
+    Jrel2 = fluxes["Jrel2"]
+    Jip3 = fluxes["Jip3"]
+
+    Jtr1 = fluxes["Jtr1"]
+    Jtr2 = fluxes["Jtr2"]
+
+    # --------------------------------------------------
+    # Sodium concentration derivatives
+    # --------------------------------------------------
+
+    dnai_dt = JgapNa * vsl / vmyo
+
+    dnasl_dt = (
+        -(INa + INaL + 3 * INaCa_i + 3 * INaK + IfNa + INab)
+        * Acap * cm / (F * vsl)
+        + JdiffNa * vss / vsl
+        - JgapNa
+    )
+
+    dnass_dt = (
+        -(ICaNa + 3 * INaCa_ss)
+        * cm * Acap / (F * vss)
+        - JdiffNa
+    )
+
+    # --------------------------------------------------
+    # Potassium concentration derivatives
+    # --------------------------------------------------
+
+    dki_dt = JgapK * vsl / vmyo
+
+    dksl_dt = (
+        -(Ito + Isus + IKr + IKs + IfK + IK1 + Istim - 2 * INaK)
+        * cm * Acap / (F * vsl)
+        + JdiffK * vss / vsl
+        - JgapK
+    )
+
+    dkss_dt = (
+        -ICaK * cm * Acap / (F * vss)
+        - JdiffK
+    )
+
+    # --------------------------------------------------
+    # Calcium buffering factors
+    # --------------------------------------------------
+
+    Bcai = 1 / (
+        1
+        + cmdnmax * kmcmdn / (kmcmdn + cai)**2
+        + trpnmax * kmtrpn / (kmtrpn + cai)**2
+    )
+
+    Bcass = 1 / (
+        1
+        + BSRmax * KmBSR / (KmBSR + cass)**2
+        + BSLmax * KmBSL / (KmBSL + cass)**2
+    )
+
+    Bcasl = 1 / (
+        1
+        + cmdnmaxsl * kmcmdn / (kmcmdn + casl)**2
+        + trpnmaxsl * kmtrpn / (kmtrpn + casl)**2
+    )
+
+    Bcajsr = 1 / (
+        1
+        + csqnmaxsl * kmcsqn / (kmcsqn + cajsr)**2
+    )
+
+    Bcacsr = 1 / (
+        1
+        + csqnmax * kmcsqn / (kmcsqn + cacsr)**2
+    )
+
+    # --------------------------------------------------
+    # Calcium concentration derivatives
+    # --------------------------------------------------
+
+    dcai_dt = Bcai * (
+        Jgap * vsl / vmyo
+        + Jrel2 * vcsr / vmyo
+        - Jup2 * vnsr / vmyo
+    )
+
+    dcass_dt = Bcass * (
+        -(ICaL - 2 * INaCa_ss) * cm * Acap / (2 * F * vss)
+        + (Jrel1 + Jip3) * vjsr / vss
+        - Jdiff
+    )
+
+    # Literal algebraic structure of the supplied CellML equation
+    # for casl: its nested minus signs simplify to a positive
+    # current term, as written here.
+    dcasl_dt = Bcasl * (
+        (IpCa + ICab + ICaT - 2 * INaCa_i)
+        * cm * Acap / (2 * F * vsl)
+        - Jup1 * vnsr / vsl
+        - Jgap
+        + Jdiff * vss / vsl
+    )
+
+    dcansr_dt = (
+        Jup1 + Jup2
+        - Jtr1 * vjsr / vnsr
+        - Jtr2 * vcsr / vnsr
+    )
+
+    dcajsr_dt = Bcajsr * (
+        Jtr1 - Jrel1 - Jip3
+    )
+
+    dcacsr_dt = Bcacsr * (
+        Jtr2 - Jrel2
+    )
+
+    # Return derivatives in exactly the same order as X
+    dXdt = np.array([
+        dnai_dt,
+        dnasl_dt,
+        dnass_dt,
+        dki_dt,
+        dksl_dt,
+        dkss_dt,
+        dcai_dt,
+        dcass_dt,
+        dcasl_dt,
+        dcansr_dt,
+        dcajsr_dt,
+        dcacsr_dt
+    ])
+
+    return dXdt
+
+
+# ============================================================
+# 1. DIFFUSION BETWEEN INTRACELLULAR COMPARTMENTS
+# ============================================================
+
+# Time constants (ms)
+SSTAU = 0.2
+GAPTAU = 12.0
+
+
+def diffusion_fluxes(
+    cai, casl, cass,
+    nai, nasl, nass,
+    ki, ksl, kss
+):
+    """
+    Calculate sodium, potassium and calcium diffusion fluxes.
+
+    Concentrations:
+        cai, casl, cass : calcium concentrations (mM)
+        nai, nasl, nass : sodium concentrations (mM)
+        ki, ksl, kss    : potassium concentrations (mM)
+
+    Compartment labels:
+        i   : bulk intracellular/myoplasmic compartment
+        sl  : subsarcolemmal compartment
+        ss  : subspace compartment
+
+    Returns:
+        Dictionary of six fluxes, each in mM/ms:
+            JdiffNa, JgapNa, JdiffK, JgapK, Jdiff, Jgap
+
+    Jdiff* describes exchange between the subspace and
+    subsarcolemmal compartments.
+    Jgap* describes exchange between the subsarcolemmal
+    and bulk intracellular compartments.
+    """
+
+    # Sodium
+    JdiffNa = (nass - nasl) / SSTAU
+    JgapNa = (nasl - nai) / GAPTAU
+
+    # Potassium
+    JdiffK = (kss - ksl) / SSTAU
+    JgapK = (ksl - ki) / GAPTAU
+
+    # Calcium
+    Jdiff = (cass - casl) / SSTAU
+    Jgap = (casl - cai) / GAPTAU
+
+    return {
+        "JdiffNa": JdiffNa,
+        "JgapNa": JgapNa,
+        "JdiffK": JdiffK,
+        "JgapK": JgapK,
+        "Jdiff": Jdiff,
+        "Jgap": Jgap
+    }
+
+
+# ============================================================
+# 2. RYANODINE RECEPTOR (RyR) CALCIUM RELEASE
+# ============================================================
+
+# Initial values of the dynamic SR release fluxes
+JREL1_0 = 0.000108240945806962
+JREL2_0 = 1.25045800437317e-69
+
+
+def ryr_derivatives(
+    Jrel1, Jrel2,
+    ICaL, Acap, F,
+    vss, vsl, vcsr, vnsr, vjsr, vmyo,
+    cajsr, cacsr,
+    Jdiff, Jgap, Jip3, Jup2,
+    CaMKa
+):
+    """
+    Calculate RyR-related release fluxes and their derivatives.
+
+    Dynamic state inputs:
+        Jrel1 : calcium release flux from the junctional SR (mM/ms)
+        Jrel2 : calcium release flux from the corbular SR (mM/ms)
+
+    Other inputs:
+        ICaL  : L-type calcium current (microA/microF)
+        Acap  : membrane capacitance area factor (cm^2)
+        F     : Faraday constant (C/mol)
+        vss, vsl, vcsr, vnsr, vjsr, vmyo : compartment volumes
+        cajsr, cacsr : calcium concentrations in junctional
+                       and corbular SR (mM)
+        Jdiff, Jgap  : calcium diffusion fluxes (mM/ms)
+        Jip3         : IP3-mediated calcium flux (mM/ms)
+        Jup2         : calcium uptake flux into SR (mM/ms)
+        CaMKa        : activated CaMK concentration, as defined
+                       in the source model (mM)
+
+    Returns:
+        REL, REL2     : driving terms used to calculate target
+                        release fluxes (source-defined units)
+        irelss, irelss2 : target release fluxes (mM/ms)
+        ireltau, ireltau2 : release time constants as defined
+                            in the source
+        dJrel1_dt, dJrel2_dt : time derivatives of the two
+                               release-flux state variables
+
+    The derivatives are intended to be included in the ODE
+    solver's state vector.
+    """
+
+    # Driving term for junctional SR release
+    REL = -(
+        (ICaL * Acap) / (vss * F * 2)
+        - ((Jrel1 + Jip3) * vjsr / vss)
+        + Jdiff
+    )
+
+    # CaMK-dependent factor used in both release pathways
+    camk_factor = 1 + 1 / (1 + (0.28 / CaMKa)**8)
+
+    # Release time constant for junctional SR
+    ireltau = (
+        2 * camk_factor
+        / (1 + 0.0123 / cajsr)
+    )
+
+    # Target release flux for junctional SR.
+    # The source sets the target to zero when REL <= 0.
+    if REL > 0:
+        irelss = (
+            15 * camk_factor * REL
+            / (1 + (1 / cajsr)**8)
+        )
+    else:
+        irelss = 0.0
+
+    # Time evolution of junctional SR release flux
+    dJrel1_dt = (irelss - Jrel1) / ireltau
+
+    # Driving term for corbular SR release
+    REL2 = (
+        Jgap * vsl / vmyo
+        - Jup2 * vnsr / vmyo
+        + Jrel2 * vcsr / vmyo
+    )
+
+    # Release time constant for corbular SR
+    ireltau2 = (
+        6 * camk_factor
+        / (1 + 0.0123 / cacsr)
+    )
+
+    # Target release flux for corbular SR
+    if REL2 > 0:
+        irelss2 = (
+            91 * camk_factor * REL2
+            / (1 + (1 / cacsr)**8)
+        )
+    else:
+        irelss2 = 0.0
+
+    # Time evolution of corbular SR release flux
+    dJrel2_dt = (irelss2 - Jrel2) / ireltau2
+
+    return {
+        "REL": REL,
+        "REL2": REL2,
+        "irelss": irelss,
+        "irelss2": irelss2,
+        "ireltau": ireltau,
+        "ireltau2": ireltau2,
+        "dJrel1_dt": dJrel1_dt,
+        "dJrel2_dt": dJrel2_dt
+    }
+
+
+# ============================================================
+# 3. SERCA CALCIUM UPTAKE
+# ============================================================
+
+# Parameters from the CellML source
+DQUPCAMKBAR = 0.75
+DKMPLBBAR = 0.00017
+KMUP = 0.00028
+NSRBAR = 15.0
+
+
+def serca_fluxes(
+    KmCaMK, CaMKa,
+    cai, casl, cansr
+):
+    """
+    Calculate SERCA-mediated calcium uptake into the SR.
+
+    Inputs:
+        KmCaMK : CaMK activation constant (mM)
+        CaMKa  : activated CaMK concentration (mM)
+        cai    : bulk intracellular calcium concentration (mM)
+        casl   : subsarcolemmal calcium concentration (mM)
+        cansr  : network SR calcium concentration (mM)
+
+    Returns:
+        dkmplb, dqupcamk : CaMK-dependent regulatory factors
+        Jup1 : uptake flux associated with the subsarcolemmal
+               calcium compartment (mM/ms)
+        Jup2 : uptake flux associated with bulk intracellular
+               calcium (mM/ms)
+
+    The flux equations are transcribed from the supplied
+    CellML source, including their original signs.
+    """
+
+    # CaMK-dependent regulation of phospholamban
+    dkmplb = (
+        DKMPLBBAR * CaMKa
+        / (CaMKa + KmCaMK)
+    )
+
+    # CaMK-dependent regulation of SERCA uptake
+    dqupcamk = (
+        DQUPCAMKBAR * CaMKa
+        / (CaMKa + KmCaMK)
+    )
+
+    # Calcium uptake associated with the subsarcolemmal pool
+    Jup1 = (
+        0.0002 * (dqupcamk + 1)
+        / (1 + (KMUP - dkmplb) / casl)
+        - 0.00105 * cansr / NSRBAR
+    )
+
+    # Calcium uptake associated with the bulk intracellular pool
+    Jup2 = (
+        0.0026 * (dqupcamk + 1)
+        / (1 + (KMUP - dkmplb) / cai)
+        - 0.0042 * cansr / NSRBAR
+    )
+
+    return {
+        "dkmplb": dkmplb,
+        "dqupcamk": dqupcamk,
+        "Jup1": Jup1,
+        "Jup2": Jup2
+    }
+
+
+# ============================================================
+# 4. IP3-MEDIATED CALCIUM RELEASE
+# ============================================================
+
+# Fixed parameters from the CellML source
+IP3_CONC = 0.0001
+IP3_K1 = 150000.0
+IP3_K1A = 16.5
+IP3_K0 = 96000.0
+IP3_K0A = 9.6
+IP3_K2 = 1800.0
+IP3_K2A = 0.21
+TAUIP3 = 3.7
+
+# Initial value of the dynamic IP3 activation variable
+U_0 = 0.466236137183558
+
+
+def ip3_derivatives(cass, cajsr, u):
+    """
+    Calculate IP3 activation, channel open probability, and
+    IP3-mediated calcium release.
+
+    Inputs:
+        cass : subspace calcium concentration (mM)
+        cajsr: junctional SR calcium concentration (mM)
+        u    : dynamic IP3 activation state variable
+
+    Returns:
+        du_dt : time derivative of u
+        POip3 : IP3-channel open probability as defined in
+                the source equations
+        Jip3  : IP3-mediated calcium flux (mM/ms)
+
+    The parameter IP3_CONC is fixed at the source's initial
+    value; it is not a dynamic state in this component.
+    """
+
+    # Evolution of the IP3 activation state
+    du_dt = (
+        cass * IP3_K2 * (1 - u)
+        - IP3_K2A * u
+    )
+
+    # IP3-channel open probability
+    POip3 = (
+        TAUIP3 * IP3_CONC * cass * (1 - u)
+        / (
+            (1 + IP3_CONC * IP3_K0 / IP3_K0A)
+            * (1 + cass * IP3_K1 / IP3_K1A)
+        )
+    )
+
+    # Calcium flux through IP3-mediated release
+    Jip3 = 10.92 * POip3 * (cajsr - cass)
+
+    return {
+        "du_dt": du_dt,
+        "POip3": POip3,
+        "Jip3": Jip3
+    }
+
+
+# ============================================================
+# 5. TRANSFER BETWEEN SR COMPARTMENTS
+# ============================================================
+
+def trans_fluxes(cansr, cajsr, cacsr):
+    """
+    Calculate calcium transfer from network SR to the
+    junctional and corbular SR compartments.
+
+    Inputs:
+        cansr : network SR calcium concentration (mM)
+        cajsr : junctional SR calcium concentration (mM)
+        cacsr : corbular SR calcium concentration (mM)
+
+    Returns:
+        Jtr1 : transfer flux from network SR to junctional SR
+               (mM/ms)
+        Jtr2 : transfer flux from network SR to corbular SR
+               (mM/ms)
+
+    Both transfer fluxes use the 120 ms time constant from
+    the CellML source.
+    """
+
+    Jtr1 = (cansr - cajsr) / 120.0
+    Jtr2 = (cansr - cacsr) / 120.0
+
+    return {
+        "Jtr1": Jtr1,
+        "Jtr2": Jtr2
+    }
 
