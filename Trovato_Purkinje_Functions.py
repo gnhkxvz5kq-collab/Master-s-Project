@@ -1,10 +1,124 @@
 import numpy as np 
 #need to convert the cellml file for the Trovato model into a python version that can be used instead 
+def initial_values():
+    """
+    Returns all initial state variables and model parameters
+    required to start the Trovato Purkinje model.
+    """
 
+    return {
+
+        # --------------------------------------------------
+        # Membrane / stimulus
+        # --------------------------------------------------
+        "v": -86.6814002878592,
+        "amp": -40.0,
+        "duration": 1.0,
+
+        # --------------------------------------------------
+        # CaMK
+        # --------------------------------------------------
+        "CaMKt": 0.00505983330678751,
+
+        # --------------------------------------------------
+        # Sodium current gates (INa)
+        # --------------------------------------------------
+        "m": 0.00632661703915808,
+        "hf": 0.788611739889677,
+        "hs": 0.788545979951331,
+        "j": 0.790474358603666,
+        "hsp": 0.579693514309867,
+        "jp": 0.790947058236417,
+
+        # --------------------------------------------------
+        # Late sodium current (INaL)
+        # --------------------------------------------------
+        "mL": 0.000241925773627233,
+        "hL": 0.463574582508218,
+        "hLp": 0.240216198686475,
+
+        # --------------------------------------------------
+        # Ito
+        # --------------------------------------------------
+        "a": 0.000272851144435704,
+        "i1": 0.649604795721571,
+        "i2": 0.989965695822495,
+
+        # --------------------------------------------------
+        # ICaL
+        # --------------------------------------------------
+        "d": 6.97735089296892e-9,
+        "ff": 0.999999968230738,
+        "fs": 0.926692153319136,
+        "fcaf": 0.99999996819573,
+        "fcas": 0.999999905741936,
+        "jca": 0.999978907334662,
+        "ffp": 0.999999968365903,
+        "fcafp": 0.999999968278239,
+        "nca": 0.00547252500964926,
+
+        # --------------------------------------------------
+        # ICaT
+        # --------------------------------------------------
+        "b": 0.000304250912559619,
+        "g": 0.994214357917907,
+
+        # --------------------------------------------------
+        # IKr
+        # --------------------------------------------------
+        "xrf": 0.000331691184084272,
+        "xrs": 0.568716473334161,
+
+        # --------------------------------------------------
+        # IKs
+        # --------------------------------------------------
+        "xs1": 0.191165248085394,
+        "xs2": 0.000222677365291219,
+
+        # --------------------------------------------------
+        # If
+        # --------------------------------------------------
+        "y": 0.233119011214908,
+
+        # --------------------------------------------------
+        # IK1
+        # --------------------------------------------------
+        "xk1": 0.997084813729909,
+
+        # --------------------------------------------------
+        # Intracellular ion concentrations
+        # --------------------------------------------------
+        "nai": 8.23183964616932,
+        "nasl": 8.23153516580562,
+        "nass": 8.23154325237268,
+
+        "ki": 143.767359809132,
+        "ksl": 143.767769906216,
+        "kss": 143.767768218104,
+
+        "cai": 4.36004404734282e-5,
+        "cass": 1.01777993438818e-4,
+        "casl": 1.02004317781147e-4,
+
+        "cansr": 1.26350902016858,
+        "cajsr": 1.24811940209535,
+        "cacsr": 1.26516959198518,
+
+        # --------------------------------------------------
+        # RyR release flux states
+        # --------------------------------------------------
+        "Jrel1": 1.08240945806962e-4,
+        "Jrel2": 1.25045800437317e-69,
+
+        # --------------------------------------------------
+        # IP3 receptor state
+        # --------------------------------------------------
+        "u": 0.466236137183558
+    }
 #will set up initialisation values later - need to make a list of those that need initialising
 #currently all initial values are established within each function component but will change this later
 def extracellular():
-
+    # concentrations of [Na^+]_o, [Ca^2+]_o, [K^+]_o in mM for extracellular ionic concentrations
     nao = 140.0
     cao = 1.8
     ko = 5.4
@@ -37,40 +151,19 @@ def Cell_Geometry(L = 0.0164, rad=0.00175):
     V_sl = 0.15 * V_cell
     return V_cell, A_geo, A_cap, V_myo, V_nsr, V_jsr, V_csr, V_ss, V_sl
 
-def If(v, time, ENa, EK, GfNa = 0.0116, GfK = 0.0232, y = 0.233119011214908):
-    #This function calculates the current from the fast sodium and potassium channels
-    #v is the membrane potential in mV
-    #time is the time in ms
-    yss = 1/(1 + np.exp(v + 87)/9.5)
-    tauy = 2000 / (np.exp((v + 57)/60) + np.exp(-(v + 132)/10))
-    dy_dt = (yss - y)/tauy
-    IfNa = GfNa * y **2 * (v-ENa)
-    IfK = GfK * y**2 * (v-EK)
-    If = IfNa + IfK
-    return If, dy_dt
-
-def Membrane_Potential(R,T,F, I_Na, I_NaL, I_to, I_sus, I_CaL, I_CaT, I_CaNa, I_CaK, I_Kr, I_Ks, I_f, I_K1, I_NaCa_i, I_NaCa_ss, I_NaK, I_Nab, I_pCa, I_Cab):
-    #set initial values
-    amp = -40 #microA per microF
-    v = -86.6814002878592 #mV
-    duration = 1 #ms
+def Membrane_Potential(R,T,F,C_m, I_Na, I_NaL, I_to, I_sus, I_CaL, I_CaT, I_CaNa, I_CaK, I_Kr, I_Ks, I_f, I_K1, I_NaCa_i, I_NaCa_ss, I_NaK, I_Nab, I_pCa, I_Cab, amp, v, duration):
     if time <= duration:
         I_stim = amp
     else:
         I_stim = 0
     vffrt = v * F**2 / (R*T)
     vfrt = v * F / (R*T)
-    dv_dt = -(I_Na + I_NaL + I_to + I_sus + I_CaL + I_CaT + I_CaNa + I_CaK + I_Kr + I_Ks + I_f + I_K1 + I_NaCa_i + I_NaCa_ss + I_NaK + I_Nab + I_pCa + I_Cab + I_stim)
+    dv_dt = -(I_Na + I_NaL + I_to + I_sus + I_CaL + I_CaT + I_CaNa + I_CaK + I_Kr + I_Ks + I_f + I_K1 + I_NaCa_i + I_NaCa_ss + I_NaK + I_Nab + I_pCa + I_Cab + 2 * I_stim) /C_m
+    #returns the derivative of the Voltage across the membrane with respect to time
     return dv_dt, vffrt, vfrt
 
-def CaMK(cass, time):
-    #initial values
-    KmCaMK = 0.15 #mM
-    aCaMK = 0.05 # per mM per ms
-    bCaMK = 0.00068 #per ms
-    CaMKo = 0.05 #per ms
-    KmCaM = 0.0015 #mM
-    CaMKt = 0.00505983330678751 #mM
+def CaMK_func(cass, time, aCaMK, bCaMK, CaMKo, KmCaM, CaMKt ):
+    
     
     CaMKb = CaMKo * (1 - CaMKt)/(1 + (KmCaM/cass))
     CaMKa = CaMKb + CaMKt
@@ -79,9 +172,8 @@ def CaMK(cass, time):
 
     return CaMKb, CaMKa, dCaMKa_dt
 
-def Reverse_Potentials(R,T,F, nao, ko, cao, nasl, ksl, casl):
-    #initial values
-    PKNa = 0.01833
+def Reverse_Potentials(R,T,F, nao, ko, cao, nasl, ksl, casl, PKNa):
+    
     ENa = (R*T/F) * np.log(nao/nasl)
     EK = (R*T/F) * np.log(ko/ksl)
     ECa = (0.5 * R*T/F) * np.log(cao/casl)
@@ -89,7 +181,7 @@ def Reverse_Potentials(R,T,F, nao, ko, cao, nasl, ksl, casl):
 
     return ENa, EK, ECa, EKs
 
-def INa(KmCaMK, v, CaMKa, ENa, time):
+def INa_func(KmCaMK, v, CaMKa, ENa, m, Ahf, hf, j, jp):
     #initial values
     # INa component: parameters and initial state values
 
@@ -103,31 +195,13 @@ def INa(KmCaMK, v, CaMKa, ENa, time):
     mtV3 = 77.42
     mtV4 = 5.955
 
-    # Initial value of activation gate m
-    m0 = 0.00632661703915808
-
     # Voltage-dependence parameters for inactivation gates
     hssV1 = 78.5
     hssV2 = 6.22
 
-    # Initial value for the fast inactivation gate
-    Ahf = 0.99
-    hf0 = 0.788611739889677
-
-    # Initial value for the slow inactivation gate
-    hs0 = 0.788545979951331
-
     # Maximum sodium conductance
     GNa = 39.4572
 
-    # Initial value for the j inactivation gate
-    j0 = 0.790474358603666
-
-    # Initial value for phosphorylated fast inactivation gate
-    hsp0 = 0.579693514309867
-
-    # Initial value for phosphorylated j gate
-    jp0 = 0.790947058236417
 
     mss = 1/ (1 + np.exp((-v-mssV1)/mssV2))
     tm = 1 / (mtD1 * np.exp((v + mtV1)/mtV2 + mtD2 * np.exp(-(v + mtV3)/mtV4)))
@@ -154,7 +228,7 @@ def INa(KmCaMK, v, CaMKa, ENa, time):
 
     return INa, tm
 
-def INaL(tm, v, KmCaMK, CaMKa, ENa, time):
+def INaL_func(tm, v, KmCaMK, CaMKa, ENa, time):
     #initial values
     mL = 0.000241925773627233
     thL = 200
@@ -175,12 +249,7 @@ def INaL(tm, v, KmCaMK, CaMKa, ENa, time):
     
     return INaL
 
-#initial values for Ito and Isus currents
-
-a0 = 0.000272851144435704
-i10 = 0.649604795721571
-i20 = 0.989965695822495
-def Ito_current(v, EK, a, i1, i2):
+def Ito_func(v, EK, a, i1, i2):
 
     # Fixed parameter
     Gto = 0.192  # mS/microF
@@ -215,7 +284,7 @@ def Ito_current(v, EK, a, i1, i2):
 
     return Ito, da_dt, di1_dt, di2_dt
 
-def Isus_current(v, EK):
+def Isus_func(v, EK):
     # Fixed parameter
     Gsus = 0.0301  # mS/microF
 
@@ -227,11 +296,11 @@ def Isus_current(v, EK):
 
     return Isus   
 
-def ICaL_current(
+def ICaL_func(
     v, cass, cao, vffrt, vfrt,
     nao, nass, ko, kss,
     KmCaMK, CaMKa,
-    d, ff, fs, fcaf, fcas, jca, ffp, fcafp, nca
+    d, ff, fs, fcaf, fcas, jca, ffp, fcafp, nca, Kmn, k2n,PCa
 ):
     """
     L-type calcium channel component from the supplied CellML.
@@ -245,13 +314,6 @@ def ICaL_current(
         dd_dt, dff_dt, dfs_dt, dfcaf_dt, dfcas_dt,
         djca_dt, dffp_dt, dfcafp_dt, dnca_dt
     """
-
-    # --------------------------------------------------
-    # 1. Fixed parameters from the CellML
-    # --------------------------------------------------
-    Kmn = 0.002
-    k2n = 1000.0
-    PCa = 7.7677e-5
 
     Aff = 0.6
     Afs = 1.0 - Aff
@@ -424,7 +486,7 @@ def ICaL_current(
         dffp_dt, dfcafp_dt, dnca_dt
     )
 
-def ICaT_current(v, ECa, b, g):
+def ICaT_func(v, ECa, b, g):
     # Fixed model parameter
     GCaT = 0.0754
 
@@ -453,7 +515,7 @@ def ICaT_current(v, ECa, b, g):
 
     return ICaT, db_dt, dg_dt
 
-def IKr_current(v, EK, ko, xrf, xrs):
+def IKr_func(v, EK, ko, xrf, xrs):
     # Fixed parameter
     GKr = 0.0342
 
@@ -494,7 +556,7 @@ def IKr_current(v, EK, ko, xrf, xrs):
 
     return IKr, dxrf_dt, dxrs_dt
 
-def IKs_current(v, EKs, casl, xs1, xs2):
+def IKs_func(v, EKs, casl, xs1, xs2):
     # Fixed parameter
     GKs = 0.0029
 
@@ -527,40 +589,7 @@ def IKs_current(v, EKs, casl, xs1, xs2):
 
     return IKs, dxs1_dt, dxs2_dt
 
-def IKs_current(v, EKs, casl, xs1, xs2):
-    # Fixed parameter
-    GKs = 0.0029
-
-    # Steady-state activation
-    xs1ss = 1 / (1 + np.exp(-(v + 11.6) / 8.932))
-    xs2ss = xs1ss
-
-    # Time constants (ms)
-    txs1 = 817.3 + 1 / (
-        2.326e-4 * np.exp((v + 48.28) / 17.8)
-        + 0.001292 * np.exp(-(v + 210) / 230)
-    )
-
-    txs2 = 1 / (
-        0.01 * np.exp((v - 50) / 20)
-        + 0.0193 * np.exp(-(v + 66.54) / 31)
-    )
-
-    # Calcium-dependent scaling factor
-    KsCa = 1 + 0.6 / (
-        1 + (3.8e-5 / casl)**1.4
-    )
-
-    # Gating-variable derivatives
-    dxs1_dt = (xs1ss - xs1) / txs1
-    dxs2_dt = (xs2ss - xs2) / txs2
-
-    # Slow delayed rectifier potassium current
-    IKs = GKs * KsCa * xs1 * xs2 * (v - EKs)
-
-    return IKs, dxs1_dt, dxs2_dt
-
-def If_current(v, ENa, EK, y):
+def If_func(v, ENa, EK, y):
     # Fixed conductances (mS/µF)
     GfNa = 0.0116
     GfK = 0.0232
@@ -585,7 +614,7 @@ def If_current(v, ENa, EK, y):
 
     return If, IfNa, IfK, dy_dt
 
-def IK1_current(v, EK, ko, xk1):
+def IK1_func(v, EK, ko, xk1):
     # Fixed conductance (mS/µF)
     GK1 = 0.0455
 
@@ -730,7 +759,7 @@ def _ncx_fluxes(na_i, ca_i, nao, cao, v, R, T, F):
 
     return JncxNa, JncxCa, allo
 
-def INaCa_i_current(
+def INaCa_i_func(
     v, R, T, F,
     nass, cass, nao, cao,
     nasl, casl, zna, zca
@@ -774,7 +803,7 @@ def INaCa_i_current(
 
     return INaCa_i, INaCa_ss
 
-def INaK_current(v, R, T, F, nasl, ksl, nao, ko, zna, zk):
+def INaK_func(v, R, T, F, nasl, ksl, nao, ko, zna, zk):
     """
     Na+/K+ ATPase pump current.
 
@@ -931,7 +960,7 @@ def INaK_current(v, R, T, F, nasl, ksl, nao, ko, zna, zk):
 
     return INaK
 
-def INab_current(nasl, nao, vffrt, vfrt):
+def INab_func(nasl, nao, vffrt, vfrt):
     """
     Background Na+ current.
 
@@ -953,7 +982,7 @@ def INab_current(nasl, nao, vffrt, vfrt):
 
     return INab
 
-def ICab_current(casl, cao, vffrt, vfrt):
+def ICab_func(casl, cao, vffrt, vfrt):
     """
     Background Ca2+ current.
 
@@ -975,7 +1004,7 @@ def ICab_current(casl, cao, vffrt, vfrt):
 
     return ICab
 
-def IpCa_current(casl):
+def IpCa_func(casl):
     """
     Sarcolemmal Ca2+ pump current.
 
@@ -1260,6 +1289,8 @@ def diffusion_fluxes(
     Jgap* describes exchange between the subsarcolemmal
     and bulk intracellular compartments.
     """
+    SSTAU = 0.2
+    GAPTAU = 12.0
 
     # Sodium
     JdiffNa = (nass - nasl) / SSTAU
@@ -1434,6 +1465,10 @@ def serca_fluxes(
     The flux equations are transcribed from the supplied
     CellML source, including their original signs.
     """
+    DQUPCAMKBAR = 0.75
+    DKMPLBBAR = 0.00017
+    KMUP = 0.00028
+    NSRBAR = 15.0
 
     # CaMK-dependent regulation of phospholamban
     dkmplb = (
@@ -1506,6 +1541,14 @@ def ip3_derivatives(cass, cajsr, u):
     The parameter IP3_CONC is fixed at the source's initial
     value; it is not a dynamic state in this component.
     """
+    IP3_CONC = 0.0001
+    IP3_K1 = 150000.0
+    IP3_K1A = 16.5
+    IP3_K0 = 96000.0
+    IP3_K0A = 9.6
+    IP3_K2 = 1800.0
+    IP3_K2A = 0.21
+    TAUIP3 = 3.7
 
     # Evolution of the IP3 activation state
     du_dt = (
@@ -1564,3 +1607,99 @@ def trans_fluxes(cansr, cajsr, cacsr):
         "Jtr2": Jtr2
     }
 
+'''this returns the derivatives of all components'''
+def Trovato_Purkinje_Model(L=0.0164, radius=0.00175, v, time, ENa, EK, GfNa = 0.0116, GfK = 0.232, y =0.233119011214908, cass, time):
+    #returns the implementation of running the Trovato Purkinje model, including ODEs and current calculations.
+    #can be used in other files to produce results for the model but will only output data not graphical representations.
+    #want this to return net current for the model
+    #establish initial conditions and physical constants
+    R, T, F, zna, zca, zk = physical_constants()
+    nao, cao, ko = extracellular()
+    V_cell, A_geo, A_cap, V_myo, V_nsr, V_jsr, V_csr, V_ss, V_sl = Cell_Geometry(L, radius)
+    #calculate shared quantities needed for further calculations
+    ENa, EK, ECa, EKs = Reverse_Potentials(R,T,F, nao, ko, cao, nasl, ksl, casl)
+    CaMKb, CaMKa, dCaMKa_dt = CaMK_func(cass, time)
+    vffrt = v * F**2 / (R*T)
+    vfrt = v * F / (R*T)
+
+    '''establish the current components'''
+
+    If, IfNa, IfK, dy_dt = If_func(v, ENa, EK, y)
+    INa, tm = INa_func(KmCaMK, v, CaMKa, ENa, time)
+    INaL = INaL_func(tm, v, KmCaMK, CaMKa, ENa, time)
+    Ito, da_dt, di1_dt, di2_dt = Ito_func(v, EK, a, i1, i2)
+    Isus = Isus_func(v, EK)
+    (ICaL, ICaNa, ICaK,
+            dd_dt, dff_dt, dfs_dt,
+            dfcaf_dt, dfcas_dt, djca_dt,
+            dffp_dt, dfcafp_dt, dnca_dt)= ICaL_func(v, cass, cao, vffrt, vfrt,nao, nass, ko, kss, KmCaMK, CaMKa,d, ff, fs, fcaf, fcas, jca, ffp, fcafp, nca)
+    ICaT, db_dt, dg_dt = ICaT_func(v, ECa, b, g)
+    IKr, dxrf_dt, dxrs_dt = IKr_func(v, EK, ko, xrf, xrs)
+    IKs, dxs1_dt, dxs2_dt = IKs_func(v, EKs, casl, xs1, xs2)
+    IK1, dxk1_dt = IK1_func(v, EK, ko, xk1)
+    INaCa_i, INaCa_ss = INaCa_i_func(v, R, T, F, nass, cass, nao, cao, nasl, casl, zna, zca)
+    INaK =  INaK_func(v, R, T, F, nasl, ksl, nao, ko, zna, zk)
+    INab = INab_func(nasl, nao, vffrt, vfrt)
+    ICa_b = ICab_func(casl, cao, vffrt, vfrt)
+    IpCa = IpCa_func(casl)
+
+    '''calculate the fluxes'''
+    fluxes = diffusion_fluxes(cai,casl,cass ,nai,nasl,nass, ki,ksl,kss)
+    serca = serca_fluxes(KmCaMK, CaMKa,cai, casl, cansr)
+    ip3 = ip3_derivatives(cass, cajsr, u)
+    ryr = ryr_derivatives(Jrel1, Jrel2, ICaL, Acap, F, vss, vsl, vcsr, vnsr, vjsr, vmyo, cajsr, cacsr, Jdiff, Jgap, Jip3, Jup2, CaMKa)
+    '''intracellular ion derivates'''
+    ion_derivs = intracellular_ion_derivatives(X, currents, fluxes, volumes, Acap, F, cm=1.0)
+
+    '''Membrane voltage derivateives'''
+    dv_dt, vffrt, vfrt = Membrane_Potential(R,T,F,C_m, I_Na, I_NaL, I_to, I_sus, I_CaL, I_CaT, I_CaNa, I_CaK, I_Kr, I_Ks, I_f, I_K1, I_NaCa_i, I_NaCa_ss, I_NaK, I_Nab, I_pCa, I_Cab, amp, v, duration)
+
+    return np.array([
+    dv_dt,
+    dCaMKt_dt,
+
+    dm_dt,
+    dhf_dt,
+    dhs_dt,
+    dj_dt,
+    dhsp_dt,
+    djp_dt,
+
+    dmL_dt,
+    dhL_dt,
+    dhLp_dt,
+
+    da_dt,
+    di1_dt,
+    di2_dt,
+
+    dd_dt,
+    dff_dt,
+    dfs_dt,
+    dfcaf_dt,
+    dfcas_dt,
+    djca_dt,
+    dffp_dt,
+    dfcafp_dt,
+    dnca_dt,
+
+    db_dt,
+    dg_dt,
+
+    dxrf_dt,
+    dxrs_dt,
+
+    dxs1_dt,
+    dxs2_dt,
+
+    dy_dt,
+
+    dxk1_dt,
+
+    *ion_derivs,
+
+    dJrel1_dt,
+    dJrel2_dt,
+
+    du_dt
+])
