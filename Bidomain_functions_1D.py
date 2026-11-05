@@ -194,7 +194,7 @@ def membrane_potential(Vm, dVm_dt, dt):
 
 '''define a bidomain function that combines all above elements'''
 
-def bidomain(Vm, no_cells, cell_length, sigma_i, sigma_e, I_ion, I_stim, beta, Cm):
+def bidomain(Vm, no_cells, cell_length, sigma_i, sigma_e, I_ion, I_stim, beta, Cm, dt):
     length, positions = cell_locations(no_cells, cell_length)
     D2, x, dx = spatial_derivative_1D(no_cells, length)
     Ki, Ke = conductivity_matrices(D2, sigma_i, sigma_e)
