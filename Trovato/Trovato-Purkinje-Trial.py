@@ -1,4 +1,4 @@
-import Trovato_Purkinje_Model_corrected as tpf
+import Trovato.Trovato_Purkinje_Model_corrected as tpf
 from scipy.integrate import solve_ivp
 import numpy as np
 import matplotlib.pyplot as plt

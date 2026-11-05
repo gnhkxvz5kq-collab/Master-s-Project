@@ -1699,3 +1699,5 @@ def _derivative_name(state_name):
                       "cai", "cass", "casl", "cansr", "cajsr", "cacsr"):
         return state_name
     return "d" + state_name + "_dt"
+
+'''returns currents'''

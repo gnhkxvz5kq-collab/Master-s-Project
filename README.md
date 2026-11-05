@@ -17,8 +17,13 @@ Trovato Purkinje Model:
 - Might be best to adapt this model for a type of animal cell so there is more accesible experimental data
 - Supplementary equations don't seem to be correct upon further investigation so will continue with cellml file for now 
 
+
 TWorld Model:
 - taken cellml code from the open source online github repository
 - translation from cellml performed by generative AI
 - comparisons made using the simulated conditions in peer-reviewed journal for TWorld model to check implementation in Python 
-- 
+
+Bidomain Model:
+- constructing for the Purkinje fibre in 1D currently 
+- used matrix formulation and built in solvers for matrix equations to evaluate variables from derivative approximations
+- should be possible to use with both Purkinje and ventricular models

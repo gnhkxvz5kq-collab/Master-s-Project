@@ -1,7 +1,7 @@
 #testing the T World translation from Cellml to Python to validate that it works as expected 
 """Minimal example for running and plotting the generated T-World model."""
 import matplotlib.pyplot as plt
-import TWorld_model_functions as tw
+import TWorld.TWorld_model_functions as tw
 
 # CellML default pacing: -53 uA/uF stimulus, 1 ms duration, 1000 ms period.
 sol, traces = tw.simulate(
