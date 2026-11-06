@@ -172,7 +172,7 @@ def calculate_dVm(Ki, Vm, phi_e, beta, Cm,
     phi_i = Vm + phi_e
 
     dVm_dt = (
-        -(Ki @ phi_i) / (beta * Cm)
+        -1e-3 * (Ki @ phi_i) / (beta * Cm)
         - I_ion / Cm
         + I_stim / Cm
     )
@@ -188,7 +188,7 @@ new dV/dt to be used for the next time step
 '''
 '''calculate the new membrane voltage'''
 def membrane_potential(Vm, dVm_dt, dt):
-    Vm = + dt * dVm_dt
+    Vm = Vm + dt * dVm_dt
     return Vm
 
 
@@ -203,4 +203,7 @@ def bidomain(Vm, no_cells, cell_length, sigma_i, sigma_e, I_ion, I_stim, beta, C
     dVm_dt = calculate_dVm(Ki, Vm, phi_e, beta, Cm, I_ion, I_stim)
     Vm_new = membrane_potential(Vm, dVm_dt, dt)
     return Vm_new
-
+'''Do I need to return Phi_i,e? 
+My assumption is no because they are recalculated at each time step and are not used in the Purkinje model, 
+only the new voltage is used to calculate the new state variables and currents
+'''

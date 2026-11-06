@@ -27,3 +27,10 @@ Bidomain Model:
 - constructing for the Purkinje fibre in 1D currently 
 - used matrix formulation and built in solvers for matrix equations to evaluate variables from derivative approximations
 - should be possible to use with both Purkinje and ventricular models
+- bidomain function returns the new membrane voltage for all cellular positions when it is advanced one step in time
+
+
+Purkinje_functions_tissues:
+- currently works for 1D fibres 
+- in the 'Trovato 1D Fibre.py' file I have defined a function that runs and plots the Purkinje fibre results of the simulation
+- will need to adapt the code from the 1D fibre for plots and functions is other dimensions to account for vector propagation in 2D
