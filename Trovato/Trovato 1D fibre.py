@@ -339,8 +339,8 @@ def run_and_plot_purkinje(
     return times, voltage_history, state_history, diagnostics, activation_times
 
 results = run_and_plot_purkinje(
-    cell_number=20,
-    total_time=500,
+    cell_number=10,
+    total_time=200,
     dt=0.01,
     sigma_i=0.2,
     sigma_e=0.6,

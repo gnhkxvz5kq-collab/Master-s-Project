@@ -1811,7 +1811,6 @@ def purkinje_bidomain(
     if cell_length is None:
         # Trovato geometry uses cm; bidomain spatial coordinates use m.
         cell_length = L * 1e-2
-
     if cell_length <= 0:
         raise ValueError("cell_length must be positive.")
 
@@ -1878,7 +1877,7 @@ def purkinje_bidomain(
         I_stim = np.zeros(cell_number)
 
         if t <= duration or (t%600) <= duration:
-            I_stim[0] = -amp
+            I_stim[3] = -amp
 
         # --------------------------------------------------
         # 6. Bidomain voltage update
