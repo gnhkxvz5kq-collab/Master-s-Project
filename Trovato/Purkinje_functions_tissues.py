@@ -1,3 +1,5 @@
+from os import times
+
 import numpy as np
 import sys
 from pathlib import Path
@@ -1609,8 +1611,9 @@ def initial_state():
     iv = initial_values()
     return np.asarray([iv[name] for name in STATE_NAMES], dtype=float)
 
-def Trovato_Purkinje_Model(time, state, *, amp=-40.0, duration=1.0,
-                           L=0.0164, radius=0.00175, return_diagnostics=False):
+def Trovato_Purkinje_Model(time, state,C_m,  *, amp=-40.0, duration=1.0,
+                           L=0.0164, radius=0.00175,# return_diagnostics=False
+                           ):
     """
     RHS for the Trovato-2020 human Purkinje-cell model.
 
@@ -1620,6 +1623,8 @@ def Trovato_Purkinje_Model(time, state, *, amp=-40.0, duration=1.0,
         Time in ms.
     state : array_like, shape (46,)
         Differential state vector in STATE_NAMES order.
+    C_m : float
+        Membrane capacitance (mu F/cm^2).
     return_diagnostics : bool
         If True, return (dstate_dt, diagnostics). Otherwise return only dstate_dt,
         compatible with scipy.integrate.solve_ivp and odeint wrappers.
@@ -1662,6 +1667,8 @@ def Trovato_Purkinje_Model(time, state, *, amp=-40.0, duration=1.0,
     IpCa = IpCa_func(s["casl"])
     Istim =  0.0
     I_ion = (INa + INaL + Ito + Isus + ICaL + ICaT + ICaNa + ICaK + IKr + IKs + If + IK1 + INaCa_i + INaCa_ss + INaK + INab + IpCa + ICab)
+    I_Ca = (ICaL + ICaT + ICaNa + ICaK+ IpCa + ICab+ INaCa_i + INaCa_ss)
+    I_Na = (INa + INaL + INab + INaCa_i + INaCa_ss + INaK + IfNa + ICaNa)
     dv_dt, _, _ = Membrane_Potential(time,R,T,F,1.0,INa,INaL,Ito,Isus,ICaL,ICaT,
         ICaNa,ICaK,IKr,IKs,If,IK1,INaCa_i,INaCa_ss,INaK,INab,IpCa,ICab,amp,v,duration)
     flux = diffusion_fluxes(s["cai"],s["casl"],s["cass"],s["nai"],s["nasl"],s["nass"],s["ki"],s["ksl"],s["kss"])
@@ -1689,7 +1696,7 @@ def Trovato_Purkinje_Model(time, state, *, amp=-40.0, duration=1.0,
     ion_names = ("nai","nasl","nass","ki","ksl","kss","cai","cass","casl","cansr","cajsr","cacsr")
     derivs.update({name: val for name,val in zip(ion_names,ion_derivs)})
     dstate = np.asarray([derivs[_derivative_name(name)] for name in STATE_NAMES], dtype=float)
-    diagnostics = {
+    '''diagnostics = {
         "currents": {**currents, "If":If},
         "reversal_potentials": {"ENa":ENa,"EK":EK,"ECa":ECa,"EKs":EKs},
         "stimulus": Istim, "dV_dt":dv_dt, "CaMKb":CaMKb,"CaMKa":CaMKa,
@@ -1698,8 +1705,9 @@ def Trovato_Purkinje_Model(time, state, *, amp=-40.0, duration=1.0,
         "gating_derivatives": derivs,
         "total_membrane_current": sum(currents[k] for k in ("INa","INaL","Ito","Isus","ICaL","ICaT","ICaNa","ICaK","IKr","IKs","If","IK1","INaCa_i","INaCa_ss","INaK","INab","IpCa","ICab")) + Istim
     }
+    ''' #Can return diagnostics another time if needed but for now just returning some of the necessary currents 
     '''need this to also return the ion current diagnostics for each cell in bidomain simulation'''
-    return (dstate, diagnostics) if return_diagnostics else (dstate, I_ion )
+    return dstate, I_ion,I_Na, I_Ca
 
 def _derivative_name(state_name):
     """Map state names to the matching RHS dictionary keys."""
@@ -1727,7 +1735,7 @@ def purkinje_bidomain(
     duration=1.0,
     L=0.0164,
     radius=0.00175,
-    return_diagnostics=False
+    #return_diagnostics=False
 ):
     """
     Simulate a 1D Purkinje fibre using the Trovato single-cell
@@ -1832,34 +1840,36 @@ def purkinje_bidomain(
     voltage_history = np.zeros((n_steps + 1, cell_number))
     voltage_history[0] = Vm
 
-    if return_diagnostics:
-        state_history = np.zeros(
+    state_history = np.zeros(
             (n_steps + 1, cell_number, len(STATE_NAMES))
         )
-        state_history[0] = states
+    state_history[0] = states
 
-        I_ion_history = np.zeros((n_steps, cell_number))
-        I_stim_history = np.zeros((n_steps, cell_number))
-        I_na_history = np.zeros((n_steps, cell_number))
-        I_to_history = np.zeros((n_steps, cell_number))
-
+    I_ion_history = np.zeros((n_steps, cell_number))
+    I_stim_history = np.zeros((n_steps, cell_number))
+    I_Na_history = np.zeros((n_steps, cell_number))
+    I_Ca_history = np.zeros((n_steps, cell_number))
     # --------------------------------------------------
     # 4. Time integration
     # --------------------------------------------------
 
     for step in range(n_steps):
-
+        
         t = times[step]
-
+        if t % 10 == 0:
+            print(f"Time: {t:.1f} ms")
         # Derivatives of all Trovato states and ionic currents
         dstate = np.zeros_like(states)
         I_ion = np.zeros(cell_number)
+        I_Na = np.zeros(cell_number)
+        I_Ca = np.zeros(cell_number)
 
         for i in range(cell_number):
 
-            dstate[i], I_ion[i] = Trovato_Purkinje_Model(
+            dstate[i], I_ion[i], I_Na[i], I_Ca[i] = Trovato_Purkinje_Model(
                 t,
                 states[i],
+                C_m=Cm,
                 amp=0.0,
                 duration=duration,
                 L=L,
@@ -1877,7 +1887,7 @@ def purkinje_bidomain(
         I_stim = np.zeros(cell_number)
 
         if t <= duration or (t%600) <= duration:
-            I_stim[3] = -amp
+            I_stim[:6] = -amp
 
         # --------------------------------------------------
         # 6. Bidomain voltage update
@@ -1916,21 +1926,22 @@ def purkinje_bidomain(
         # 8. Store diagnostics if requested
         # --------------------------------------------------
 
-        if return_diagnostics:
-
-            state_history[step + 1] = states
-            I_ion_history[step] = I_ion
-            I_stim_history[step] = I_stim
-
+        state_history[step + 1] = states
+        I_ion_history[step] = I_ion
+        I_stim_history[step] = I_stim
+        I_Na_history[step] = I_Na
+        I_Ca_history[step] = I_Ca
     # --------------------------------------------------
     # 9. Return results
     # --------------------------------------------------
-
+    '''
     if return_diagnostics:
 
         diagnostics_history = {
             "I_ion": I_ion_history,
-            "I_stim": I_stim_history
+            "I_stim": I_stim_history,
+            "I_Na": I_Na_history,
+            "I_Ca": I_Ca_history
 
         }
 
@@ -1940,8 +1951,8 @@ def purkinje_bidomain(
             state_history,
             diagnostics_history
         )
-
-    return times, voltage_history
+    '''
+    return times, voltage_history, I_ion_history, I_Na_history, I_Ca_history
 
     
 '''Returns times and voltage history for a given number of cells, also if specified for can return state history

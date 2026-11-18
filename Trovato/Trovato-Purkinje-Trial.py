@@ -1,4 +1,4 @@
-import Trovato.Trovato_Purkinje_Model_corrected as tpf
+import Trovato_Purkinje_Model_corrected as tpf
 from scipy.integrate import solve_ivp
 import numpy as np
 import matplotlib.pyplot as plt
@@ -64,7 +64,7 @@ y0 = tpf.initial_state()
 
 # Simulate for 1000 ms
 solution = solve_ivp(
-    fun=lambda t, y: tpf.Trovato_Purkinje_Model(t, y),
+    fun=lambda t, y: tpf.Trovato_Purkinje_Model(t, y, C_m = 1),
     t_span=(0.0, 1000.0),
     y0=y0,
     method="BDF",
@@ -94,7 +94,7 @@ for i, t in enumerate(solution.t):
     state = solution.y[:, i]
 
     _, diagnostics = tpf.Trovato_Purkinje_Model(
-        t, state, return_diagnostics=True
+        t, state,C_m = 1,  return_diagnostics=True
     )
 
     for name, value in diagnostics["currents"].items():

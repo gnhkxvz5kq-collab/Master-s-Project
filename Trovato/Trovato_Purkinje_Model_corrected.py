@@ -1602,7 +1602,7 @@ def initial_state():
     iv = initial_values()
     return np.asarray([iv[name] for name in STATE_NAMES], dtype=float)
 
-def Trovato_Purkinje_Model(time, state, *, amp=-40.0, duration=1.0,
+def Trovato_Purkinje_Model(time, state,C_m , *, amp=-40.0, duration=1.0,
                            L=0.0164, radius=0.00175, return_diagnostics=False):
     """
     RHS for the Trovato-2020 human Purkinje-cell model.
@@ -1613,6 +1613,8 @@ def Trovato_Purkinje_Model(time, state, *, amp=-40.0, duration=1.0,
         Time in ms.
     state : array_like, shape (46,)
         Differential state vector in STATE_NAMES order.
+    C_m : float
+        Membrane capacitance (mu F/cm^2).
     return_diagnostics : bool
         If True, return (dstate_dt, diagnostics). Otherwise return only dstate_dt,
         compatible with scipy.integrate.solve_ivp and odeint wrappers.
@@ -1654,7 +1656,7 @@ def Trovato_Purkinje_Model(time, state, *, amp=-40.0, duration=1.0,
     ICab = ICab_func(s["casl"],cao,vffrt,vfrt)
     IpCa = IpCa_func(s["casl"])
     Istim = amp if time <= duration else 0.0
-    dv_dt, _, _ = Membrane_Potential(time,R,T,F,1.0,INa,INaL,Ito,Isus,ICaL,ICaT,
+    dv_dt, _, _ = Membrane_Potential(time,R,T,F,C_m,INa,INaL,Ito,Isus,ICaL,ICaT,
         ICaNa,ICaK,IKr,IKs,If,IK1,INaCa_i,INaCa_ss,INaK,INab,IpCa,ICab,amp,v,duration)
 
     flux = diffusion_fluxes(s["cai"],s["casl"],s["cass"],s["nai"],s["nasl"],s["nass"],s["ki"],s["ksl"],s["kss"])

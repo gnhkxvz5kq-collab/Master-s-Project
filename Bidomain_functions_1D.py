@@ -44,25 +44,28 @@ def spatial_derivative_1D(N, L):
 
     # Cell-centre positions
     x = (np.arange(N) + 0.5) * dx
-
+    if N == 1:
+        D2 = csr_matrix((1, 1))
+        return D2, x, dx
     # Main diagonal
-    main = -2.0 * np.ones(N)
+    else:
+        main = -2.0 * np.ones(N)
 
     # Zero-flux boundary conditions
-    main[0] = -1.0
-    main[-1] = -1.0
+        main[0] = -1.0
+        main[-1] = -1.0
 
     # Adjacent diagonals
-    upper = np.ones(N - 1)
-    lower = np.ones(N - 1)
+        upper = np.ones(N - 1)
+        lower = np.ones(N - 1)
 
     # Construct sparse matrix
-    D2 = diags(
-        [lower, main, upper],
-        offsets=[-1, 0, 1],
-        shape=(N, N),
-        format="csr"
-    ) / dx**2
+        D2 = diags(
+            [lower, main, upper],
+            offsets=[-1, 0, 1],
+            shape=(N, N),
+            format="csr"
+        ) / dx**2
 
     return D2, x, dx
 
@@ -173,8 +176,8 @@ def calculate_dVm(Ki, Vm, phi_e, beta, Cm,
 
     dVm_dt = (
         -1e-3 * (Ki @ phi_i) / (beta * Cm)
-        - I_ion / Cm
-        + I_stim / Cm
+        - I_ion
+        + I_stim 
     )
 
     return dVm_dt
@@ -197,6 +200,7 @@ def membrane_potential(Vm, dVm_dt, dt):
 def bidomain(Vm, no_cells, cell_length, sigma_i, sigma_e, I_ion, I_stim, beta, Cm, dt):
     length, positions = cell_locations(no_cells, cell_length)
     D2, x, dx = spatial_derivative_1D(no_cells, length)
+
     Ki, Ke = conductivity_matrices(D2, sigma_i, sigma_e)
     phi_e = solve_extracellular_potential(Ki, Ke, Vm)
     phi_i = Vm + phi_e

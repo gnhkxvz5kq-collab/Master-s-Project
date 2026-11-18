@@ -39,7 +39,7 @@ def run_and_plot_purkinje(
     # 2. Run bidomain simulation
     # --------------------------------------------------
 
-    times, voltage_history, state_history, diagnostics = (
+    times, voltage_history, I_ion, I_Na, I_Ca= (
         purkinje_bidomain(
             total_time,
             cell_number,
@@ -54,7 +54,7 @@ def run_and_plot_purkinje(
             duration=duration,
             L=L,
             radius=radius,
-            return_diagnostics=True
+            #return_diagnostics=True
         )
     )
 
@@ -69,7 +69,7 @@ def run_and_plot_purkinje(
     positions_mm = positions * 1e3
 
     # Select cells distributed along the fibre
-    selected_cells = np.arange(0, cell_number, 1)
+    selected_cells = np.arange(0, cell_number, 5)
 
     # --------------------------------------------------
     # 3. Plot voltage traces
@@ -115,13 +115,9 @@ def run_and_plot_purkinje(
     # 6. Plot ionic currents
     # --------------------------------------------------
 
-    I_ion = diagnostics["total_membrane_current"]
-    I_Na = diagnostics["INa"]
-    I_CaL = diagnostics["ICaL"]
-    I_to = diagnostics["Ito"]
-    I_kr = diagnostics["Ikr"]
-    I_Ks = diagnostics["IKs"]
-    I_f = diagnostics["If"]
+    # I_ion = diagnostics["I_ion"]
+    # I_Na = diagnostics["I_Na"]
+    # I_Ca = diagnostics["I_Ca"]
     plt.figure(figsize=(10, 5))
 
     for i in selected_cells:
@@ -132,7 +128,7 @@ def run_and_plot_purkinje(
         )
 
     plt.xlabel("Time (ms)")
-    plt.ylabel("I_ion (mA)")
+    plt.ylabel("I_ion (micro A)")
     plt.title("Trovato I_ion at selected cells")
     plt.legend()
     plt.grid()
@@ -149,7 +145,7 @@ def run_and_plot_purkinje(
         )
 
     plt.xlabel("Time (ms)")
-    plt.ylabel("I_Na (mA)")
+    plt.ylabel("I_Na (microA)")
     plt.title("Trovato I_Na at selected cells")
     plt.legend()
     plt.grid()
@@ -161,70 +157,18 @@ def run_and_plot_purkinje(
     for i in selected_cells:
         plt.plot(
             times[:-1],
-            I_CaL[:, i],
+            I_Ca[:, i],
             label=f"Cell {i}"
         )
 
     plt.xlabel("Time (ms)")
-    plt.ylabel("I_CaL (mA)")
-    plt.title("Trovato I_CaL at selected cells")
+    plt.ylabel("I_Ca (micro A)")
+    plt.title("Trovato I_Ca at selected cells")
     plt.legend()
     plt.grid()
     plt.tight_layout()
     plt.show()
     
-    plt.figure(figsize=(10, 5))
-
-    for i in selected_cells:
-        plt.plot(
-            times[:-1],
-            I_to[:, i],
-            label=f"Cell {i}"
-        )
-
-    plt.xlabel("Time (ms)")
-    plt.ylabel("I_to (mA)")
-    plt.title("Trovato I_to at selected cells")
-    plt.legend()
-    plt.grid()
-    plt.tight_layout()
-    plt.show()
-
-    plt.figure(figsize=(10, 5))
-
-    for i in selected_cells:
-        plt.plot(
-            times[:-1],
-            I_kr[:, i],
-            label=f"Cell {i}"
-        )
-
-    plt.xlabel("Time (ms)")
-    plt.ylabel("I_kr (mA)")
-    plt.title("Trovato I_kr at selected cells")
-    plt.legend()
-    plt.grid()
-    plt.tight_layout()
-    plt.show()
-
-    plt.figure(figsize=(10, 5))
-
-    for i in selected_cells:
-        plt.plot(
-            times[:-1],
-            I_Ks[:, i],
-            label=f"Cell {i}"
-        )
-
-    plt.xlabel("Time (ms)")
-    plt.ylabel("I_Ks (mA)")
-    plt.title("Trovato I_Ks at selected cells")
-    plt.legend()
-    plt.grid()
-    plt.tight_layout()
-    plt.show()
-
-    plt.figure(figsize=(10, 5))
 
     # --------------------------------------------------
     # 7. Calculate activation times
@@ -336,16 +280,17 @@ def run_and_plot_purkinje(
             "conduction velocity."
         )
 
-    return times, voltage_history, state_history, diagnostics, activation_times
+    return times, voltage_history, activation_times
 
 results = run_and_plot_purkinje(
-    cell_number=10,
-    total_time=200,
-    dt=0.01,
-    sigma_i=0.2,
-    sigma_e=0.6,
+    cell_number= 200,
+    total_time= 1000,
+    dt=0.005,
+    sigma_i=2 * 0.6,
+    sigma_e=6 * 0.6,
     beta=115500,
-    Cm=1,
+    Cm=0.01,
     amp=-40.0,
-    duration=1.0
+    duration=2.2
 )
+### these values actually give graphs that work now and give good conduction values 

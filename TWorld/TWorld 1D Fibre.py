@@ -12,7 +12,7 @@ def run_and_plot_ventricle(cell_number,
                            Cm, 
                            amp=-40.0, 
                            duration=1.0,
-                           L=500, 
+                           L=200, 
                            cell_length=None, 
                             threshold=-30.0
 ):
@@ -209,8 +209,8 @@ def run_and_plot_ventricle(cell_number,
     return times, voltage_history
 
 results = run_and_plot_ventricle(
-    cell_number=10,
-    total_time=400,
+    cell_number=8,
+    total_time=300,
     dt=0.005,
     sigma_i=0.2,
     sigma_e=0.6,

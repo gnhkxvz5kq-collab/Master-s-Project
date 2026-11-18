@@ -1434,7 +1434,6 @@ def rhs(time, state, parameters=None):
 
 
 
-
 def ventricle_bidomain_1D(
     total_time,
     cell_number,
@@ -1549,7 +1548,7 @@ def ventricle_bidomain_1D(
 
             # Convert T-WORLD current into physical current density.
             # I_tot is outward-positive, as required by bidomain.
-            I_ion[i] = Cm_TW * total_current
+            I_ion[i] = total_current
 
         # -----------------------------------------------------
         # External stimulus
@@ -1560,7 +1559,7 @@ def ventricle_bidomain_1D(
         if stimulus_on:
             # T-WORLD: negative amp is inward/depolarising.
             # Bidomain: positive I_stim is inward/depolarising.
-            I_stim[0] = -Cm_TW * amp
+            I_stim[0] =  - amp
 
         # -----------------------------------------------------
         # Bidomain voltage derivative
